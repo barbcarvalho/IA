@@ -1,0 +1,128 @@
+#@title Previsão da bolsa da Magalu
+# baixa dados da bolsa diretamente do Yahoo Finance
+import yfinance as yf
+
+# para cálculos matemáticos e vetores
+import numpy as np
+
+# manipulação de tabelas e séries temporais
+
+import pandas as pd
+
+# responsável pelos gráficos
+import matplotlib.pyplot as plt
+
+# tenta aprender tendências matemáticas
+from sklearn.linear_model import LinearRegression
+
+# MGLU3 = código da ação da Magazine Luiza
+# .SA   = bolsa brasileira (B3)
+a = yf.Ticker("MGLU3.SA")
+
+# period="2y" = 2 anos (tem duas variações mo - meses e max - que puxa o máximo que tem disponível)
+
+his = a.history(period="max")
+
+# "close" = preço de fechamento da ação
+# criando uma nova tabela contendo: data e fechamento
+# copy() evita alterações indesejadas no dataframe original
+dados = his[['Close']].copy()
+
+# coluna chamada "Target" = qual será o preço do dia seguinte?
+# shift(-1):move os dados uma linha para cima
+
+dados['Target'] = dados['Close'].shift(-1)
+
+# dropna() remove linhas com valores vazios (NaN)
+dados.dropna(inplace=True)
+
+# X = entradas da IA (preço atual)
+# np.array converte os para dados matemáticos
+
+x = np.array(dados[['Close']])
+
+# y = respostas corretas (valor de previsão)
+
+y = np.array(dados['Target'])
+
+# modelo de regressão linear tenta encontrar (padrões matemáticos,tendências e comportamento dos preços)
+modelo = LinearRegression()
+
+# fit() = treinar a IA
+# X -> preço atual
+# y -> próximo preço
+modelo.fit(x, y)
+
+# tail(1): pega o fechamento da ação
+# Será usado para prever o próximo dia
+ultimo_preco = dados[['Close']].tail(1)
+
+# predict() = realizar previsão
+previsao = modelo.predict(ultimo_preco)
+
+print("Previsão próximo dia:", previsao[0])
+
+# figsize=(12,6)
+#
+# 12 = largura
+# 6  = altura
+plt.figure(figsize=(12,6))
+
+# label: legenda
+plt.plot(
+    his.index,
+    his['Close'],
+    color='red',
+    label='Histórico'
+)
+
+# hist.index[-1] pega a última data disponível
+# pd.Timedelta(days=1) adiciona 1 dia
+
+proxima_data = his.index[-1] + pd.Timedelta(days=1)
+
+# s=120:
+# tamanho do ponto
+plt.scatter(
+    proxima_data,
+    previsao[0],
+    color='blue',
+    s=120,
+    label='Previsão IA'
+)
+
+# linestyle='dashed'
+# cria linha tracejada
+plt.plot(
+    [his.index[-1], proxima_data],
+    [his['Close'].iloc[-1], previsao[0]],
+    color='blue',
+    linestyle='dashed'
+)
+
+
+# plt.text() escreve texto no gráfico
+plt.text(
+    proxima_data,
+    previsao[0],
+    f'{previsao[0]:.2f}',
+    fontsize=10
+)
+
+# título
+plt.title('Magazine Luiza + Previsão IA')
+
+# eixo X
+plt.xlabel('Data')
+
+# eixo Y
+plt.ylabel('Preço')
+
+# mostra a legenda
+plt.legend()
+
+# "ativa" linhas de fundo
+plt.grid(True)
+
+# exibe
+plt.show()
