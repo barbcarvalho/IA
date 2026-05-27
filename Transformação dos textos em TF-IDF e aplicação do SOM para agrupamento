@@ -1,0 +1,78 @@
+#@title Inicia o download
+!wget https://github.com/cedmenezes/estudos/raw/refs/heads/main/textos_humanos.zip
+#!wget + o link de download
+#@title Execução da extração
+!unzip textos_humanos.zip
+# !unzip + o nome do arquivo que quer executar
+#@title Biblioteca SOM
+!pip install sklearn-som
+#@title Importação das bibliotecas para processamento de texto (TF-IDF)
+import os
+# Para lidar com o sistema operacional(ler pastas, listar arquivos, criar diretórios).
+from sklearn.feature_extraction.text import CountVectorizer
+# Ele cria o "vocabulário" dos seus textos e verifica a frequência
+from sklearn.feature_extraction.text import TfidfTransformer
+# Ajusta os pesos das palavras
+from sklearn.pipeline import Pipeline
+# É como uma "esteira de produção". Ele agrupa vários passos (como o Count e o Tfidf)
+# em um único objeto, facilitando muito o trabalho de treinar e testar o modelo depois.
+#@title DEF com o objetivo de ler o arquivo de forma segura e organizada
+def ler_arquivo(pasta, nome_arquivo):
+    caminho = os.path.join(pasta, nome_arquivo)
+    # os.path é importante para que o caminho funcione em qualquer sistema operacional
+
+    try:
+        with open(caminho, 'r', encoding='utf-8') as arquivo:
+          #  encoding='utf-8' é importante para acentos
+          # modo de leitura é 'r'
+            conteudo = arquivo.read()
+        return conteudo
+    except FileNotFoundError: #tratamento de erros
+        return "Arquivo não encontrado."
+    except Exception as e: #tratamento de erros
+        return f"Erro ao ler o arquivo: {e}"
+#@title Leitura dos arquivos e transformação dos textos em vetores TF-IDF
+body = []
+classificacao = ['Astrofisica', 'Computacao', 'Gastronomia', 'Medicina']
+for categoria in classificacao: # passa por todas as classificações.
+  print(f'\n{categoria}:')
+  for i in range(1,11): # passa pelos arquivos de 1 ao 10.
+    texto = ler_arquivo(categoria, categoria+'_'+str(i) + '.txt')
+# monta o nome do arquivo dinamicamente.
+    print(f'{i}) {texto[0:77]} ...')
+# i é o indice que se encontra e [importante: não pode 00 ou 01-09] fatia a parte da previa que quero mostrar do texto.
+    body.append(texto)
+p = Pipeline([('count', CountVectorizer()),
+              ('tfid', TfidfTransformer())]).fit(body)
+# p é a vetorização
+
+resu = p.transform(body).toarray().round(1)
+# resu é a matriz numérica, ou seja, cada linha um texto e cada coluna uma nova palavra do vocabulário
+#@title Transformação dos textos em TF-IDF e aplicação do SOM para agrupamento
+
+from sklearn_som.som import SOM
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+vetorizacao = TfidfVectorizer()
+# vetorização
+t = vetorizacao.fit_transform(body)
+# aprende o vocabulário e calcula o idf e converte o texto para vetor numérico
+
+t_array = t.toarray()
+# converte de matriz esparsa para matriz densa
+# matriz esparsa é armazenar apenas os elementos diferentes de zero e suas respectivas posições
+# ver o vocabulário vetorizacao.get_feature_names_out()
+s = SOM(m=4, n=4, dim=t_array.shape[1], random_state=42)
+# criação da rede SOM, m e n são os neurônios então é 4x4=16
+# dim = numero de características nesse caso é palavras
+#print("Textos:", t_array.shape[0])
+#print("Palavras:", t_array.shape[1])
+# random é para garantir o controle de aleatoriedade e 42 é um número padrão pode ser qualquer número inteiro
+s.fit(t_array)
+# treinar o modelo
+agrupamento = s.predict(t_array)
+
+for i in range(0, len(agrupamento), 10): # loop para mostrar os agrupamentos
+    grupo = agrupamento[i] + 1 # para o agrupamento começar com 1
+    print(f'Textos {i+1} ao {i+10} - Agrupamento {grupo}')
+# como no outro bloco colocamos de 10 em 10 aqui na visualização foi colocado do 1-10, incluindo o 10
